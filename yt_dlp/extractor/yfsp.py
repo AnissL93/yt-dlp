@@ -12,7 +12,34 @@ from ..utils import (
 from ..utils.traversal import traverse_obj
 
 
-class YfspIE(InfoExtractor):
+class YfspBaseIE(InfoExtractor):
+    def _call_api(self, path, video_id, params, pconfig):
+        query = '&'.join(f'{k}={v}' for k, v in params.items())
+        vv = hashlib.md5(
+            f'{pconfig["publicKey"]}&{query.lower()}&{pconfig["privateKey"][0]}'.encode()).hexdigest()
+        resp = self._download_json(
+            f'https://m10.yfsp.tv/v3/{path}?{urllib.parse.urlencode(params)}&vv={vv}&pub={pconfig["publicKey"]}',
+            video_id, note=f'Downloading {path} JSON', headers={'Referer': 'https://www.yfsp.tv/'})
+        if resp.get('ret') != 200 or traverse_obj(resp, ('data', 'code')) != 0:
+            raise ExtractorError(f'API error: {traverse_obj(resp, ("data", "msg")) or resp.get("msg")}')
+        return traverse_obj(resp, ('data', 'info', 0, {dict})) or {}
+
+    def _get_pconfig(self, url, video_id):
+        webpage = self._download_webpage(url, video_id)
+        pconfig = traverse_obj(self._search_json(
+            r'var\s+injectJson\s*=', webpage, 'inject json', video_id),
+            ('config', 0, 'pConfig', {dict}))
+        if not pconfig:
+            raise ExtractorError('Unable to find signing keys')
+        return pconfig
+
+    def _get_detail(self, series_id, pconfig):
+        return self._call_api('video/detail', series_id, {
+            'cinema': 1, 'device': 1, 'player': 'CkPlayer', 'tech': 'HLS', 'country': 'HU',
+            'lang': 'cns', 'v': 1, 'id': series_id, 'region': 'GL.'}, pconfig)
+
+
+class YfspIE(YfspBaseIE):
     IE_NAME = 'yfsp'
     IE_DESC = '爱壹帆 (yfsp.tv)'
     _VALID_URL = r'https?://(?:www\.|m\.)?yfsp\.tv/play/(?P<series_id>\w+)\?(?:[^#]*&)?id=(?P<id>\w+)'
@@ -34,29 +61,10 @@ class YfspIE(InfoExtractor):
         'params': {'skip_download': 'm3u8'},
     }]
 
-    def _call_api(self, path, video_id, params, pconfig):
-        query = '&'.join(f'{k}={v}' for k, v in params.items())
-        vv = hashlib.md5(
-            f'{pconfig["publicKey"]}&{query.lower()}&{pconfig["privateKey"][0]}'.encode()).hexdigest()
-        resp = self._download_json(
-            f'https://m10.yfsp.tv/v3/{path}?{urllib.parse.urlencode(params)}&vv={vv}&pub={pconfig["publicKey"]}',
-            video_id, note=f'Downloading {path} JSON', headers={'Referer': 'https://www.yfsp.tv/'})
-        if resp.get('ret') != 200 or traverse_obj(resp, ('data', 'code')) != 0:
-            raise ExtractorError(f'API error: {traverse_obj(resp, ("data", "msg")) or resp.get("msg")}')
-        return traverse_obj(resp, ('data', 'info', 0, {dict})) or {}
-
     def _real_extract(self, url):
         series_id, video_id = self._match_valid_url(url).group('series_id', 'id')
-        webpage = self._download_webpage(url, video_id)
-        pconfig = traverse_obj(self._search_json(
-            r'var\s+injectJson\s*=', webpage, 'inject json', video_id),
-            ('config', 0, 'pConfig', {dict}))
-        if not pconfig:
-            raise ExtractorError('Unable to find signing keys')
-
-        detail = self._call_api('video/detail', series_id, {
-            'cinema': 1, 'device': 1, 'player': 'CkPlayer', 'tech': 'HLS', 'country': 'HU',
-            'lang': 'cns', 'v': 1, 'id': series_id, 'region': 'GL.'}, pconfig)
+        pconfig = self._get_pconfig(url, video_id)
+        detail = self._get_detail(series_id, pconfig)
         play = self._call_api('video/play', video_id, {
             'cinema': 1, 'id': video_id, 'a': 0, 'lang': 'cns', 'usersign': 1,
             'region': 'GL.', 'device': 1, 'isMasterSupport': 1}, pconfig)
@@ -88,3 +96,35 @@ class YfspIE(InfoExtractor):
                 'timestamp': ('addTime', {parse_iso8601}),
             }),
         }
+
+
+class YfspPlaylistIE(YfspBaseIE):
+    IE_NAME = 'yfsp:playlist'
+    _VALID_URL = r'https?://(?:www\.|m\.)?yfsp\.tv/play/(?P<id>\w+)/?(?:$|[?#])'
+    _TESTS = [{
+        'url': 'https://www.yfsp.tv/play/NjvfTz4MVG6',
+        'info_dict': {
+            'id': 'NjvfTz4MVG6',
+            'title': '披荆斩棘2026',
+            'description': r're:^《披荆斩棘2026》本季集结28位嘉宾',
+        },
+        'playlist_mincount': 50,
+    }]
+
+    @classmethod
+    def suitable(cls, url):
+        return not YfspIE.suitable(url) and super().suitable(url)
+
+    def _real_extract(self, url):
+        series_id = self._match_id(url)
+        pconfig = self._get_pconfig(url, series_id)
+        detail = self._get_detail(series_id, pconfig)
+        playlist = self._call_api('video/languagesplaylist', series_id, {
+            'cinema': 1, 'vid': series_id, 'lsk': 1, 'taxis': 0, 'cid': detail.get('cid') or ''}, pconfig)
+
+        entries = [
+            self.url_result(
+                f'https://www.yfsp.tv/play/{series_id}?id={ep["key"]}', YfspIE, ep['key'], ep.get('name'))
+            for ep in traverse_obj(playlist, ('playList', lambda _, v: v['key']))]
+        return self.playlist_result(
+            entries, series_id, detail.get('title'), detail.get('contxt'))

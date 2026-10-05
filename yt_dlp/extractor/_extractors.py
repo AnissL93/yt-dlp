@@ -2358,7 +2358,10 @@ from .yappy import (
     YappyProfileIE,
 )
 from .yfanefa import YfanefaIE
-from .yfsp import YfspIE
+from .yfsp import (
+    YfspIE,
+    YfspPlaylistIE,
+)
 from .yle_areena import YleAreenaIE
 from .youjizz import YouJizzIE
 from .youku import (
