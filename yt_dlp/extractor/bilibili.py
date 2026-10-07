@@ -1494,6 +1494,7 @@ class BilibiliCollectionListIE(BilibiliSpaceListBaseIE):
     _VALID_URL = [
         r'https?://space\.bilibili\.com/(?P<mid>\d+)/channel/collectiondetail/?\?sid=(?P<sid>\d+)',
         r'https?://space\.bilibili\.com/(?P<mid>\d+)/lists/(?P<sid>\d+)',
+        r'https?://space\.bilibili\.com/(?P<mid>\d+)/lists/?\?(?:[^#]+&)?sid=(?P<sid>\d+)',
     ]
     _TESTS = [{
         'url': 'https://space.bilibili.com/2142762/lists/3662502?type=season',
@@ -1513,6 +1514,9 @@ class BilibiliCollectionListIE(BilibiliSpaceListBaseIE):
         'only_matching': True,
     }, {
         'url': 'https://space.bilibili.com/2142762/channel/collectiondetail?sid=57445',
+        'only_matching': True,
+    }, {
+        'url': 'https://space.bilibili.com/5328640/lists?sid=7909182',
         'only_matching': True,
     }]
 
