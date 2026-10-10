@@ -23,6 +23,7 @@ class NnyyIE(InfoExtractor):
             'episode': '20150418',
         },
         'params': {'skip_download': 'm3u8'},
+        'expected_warnings': ['Failed to download m3u8 information'],
     }]
 
     def _real_extract(self, url):

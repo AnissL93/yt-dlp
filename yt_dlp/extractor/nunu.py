@@ -12,8 +12,8 @@ from ..utils.traversal import traverse_obj
 
 class NunuIE(InfoExtractor):
     IE_NAME = 'nunu'
-    IE_DESC = '努努影院 (nunu.in, nunuyy*.com)'
-    _VALID_URL = r'https?://(?:www\.)?(?P<host>nunu\.in|nunuyy\d*\.com)/vod/(?P<id>\d+)\.html'
+    IE_DESC = '努努影院 (nunuyy*.com)'
+    _VALID_URL = r'https?://(?:www\.)?(?P<host>nunuyy\d*\.com)/vod/(?P<id>\d+)\.html'
     _TESTS = [{
         'url': 'https://www.nunuyy5.com/vod/202620048.html',
         'info_dict': {
@@ -30,9 +30,6 @@ class NunuIE(InfoExtractor):
         'expected_warnings': ['Failed to download m3u8 information'],
     }, {
         'url': 'https://www.nunuyy5.com/vod/202620048.html?s=20261010',
-        'only_matching': True,
-    }, {
-        'url': 'https://www.nunu.in/vod/202620048.html',
         'only_matching': True,
     }]
 
