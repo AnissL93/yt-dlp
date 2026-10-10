@@ -1248,6 +1248,10 @@ from .ninenews import NineNewsIE
 from .ninenow import NineNowIE
 from .nintendo import NintendoIE
 from .nitter import NitterIE
+from .nnyy import (
+    NnyyIE,
+    NnyyPlaylistIE,
+)
 from .nobelprize import NobelPrizeIE
 from .noice import NoicePodcastIE
 from .nonktube import NonkTubeIE
